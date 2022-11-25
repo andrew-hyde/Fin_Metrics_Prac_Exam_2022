@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Helping You Write Academic Papers in R using Texevier"
+title: "Question 1: Systematic AI Fund"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -106,13 +106,10 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 # These should be picked up when you execute the command chunks (code sections below) in your rmd, not printed in your paper!
 
 # Lets load in example data, and see how this can be stored and later called from your 'data' folder.
-if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
-Example_data <- Texevier::Ex_Dat
-
-# Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
-# This means that when working in a .Rproj file, you never need to use getwd() - it is assumed as your base root automatically.
-write_rds(Example_data, path = "data/Example_data.rds")
+ASISA <- read_rds("data/ASISA.rds")
+BM <- read_rds("data/Capped SWIX.rds")
+AI_Fund <- read_rds("data/AI Max Fund.rds")
 
 ```
 
@@ -121,5 +118,5 @@ write_rds(Example_data, path = "data/Example_data.rds")
 <!-- # Start Writing here: -->
 <!-- ############################## -->
 
-# Question 1: Systematic AI Fund \label{Question 1: Systematic AI Fund}
+# Introduction \label{Introduction}
 
