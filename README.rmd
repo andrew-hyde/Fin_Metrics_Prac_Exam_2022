@@ -22,3 +22,39 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 ```
 
 
+# How to get started
+```{r, eval=F, echo=T} 
+# eval=F and echo=T, as i want to see the code but I don't want it to run again
+
+# create a project
+fmxdat::make_project(Open = T)
+# location: C:\Masters Economics\Fin Metrics\Fin_Metrics_Prac_Exam_2022\Fin_Metrics_Prac_Exam_2022
+# from the clipboard
+
+# create folders for each Question
+# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question1", build_project = TRUE, open_project = FALSE)
+# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question2", build_project = TRUE, open_project = FALSE)# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question3", build_project = TRUE, open_project = FALSE)# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question4", build_project = TRUE, open_project = FALSE)# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question5", build_project = TRUE, open_project = FALSE)# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question6", build_project = TRUE, open_project = FALSE)# create folders for each Question
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Prac_Exam_2022/Fin_Metrics_Prac_Exam_2022",
+            template_name = "Question7", build_project = TRUE, open_project = FALSE)
+
+
+```
