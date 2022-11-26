@@ -71,6 +71,7 @@ Economists have recently pointed out that the current yield spreads in local mid
 
 ```{r}
 
+library(tidyverse)
 SA_bonds <- read_rds("data/SA_Bonds.rds")
 BE_Infl <- read_rds("data/BE_Infl.rds")
 bonds_2y <- read_rds("data/bonds_2y.rds")
