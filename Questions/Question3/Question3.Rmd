@@ -223,7 +223,7 @@ To determine the weights per sector for each index. I select the Top 40 stocks p
 
 I one can see from the Portfolio Weights graphs below both indexes allocate a substantial amount to industrials. However, performance differences between the two indexes can be explained by the differences in weights between financials and resources.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 weights_graph_q3.6_func(df_data = rebalance_col_J200,
                 title = "Portfolio Weights of the ALSI Index by Sector",
                 subtitle = "From 2008 to 2022",
@@ -233,14 +233,14 @@ weights_graph_q3.6_func(df_data = rebalance_col_J200,
 ```
 
 
-<!-- ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE} -->
-<!-- weights_graph_q3.7_func(df_data = rebalance_col_J200, -->
-<!--                 title = "Portfolio Weights of the SWIX Index by Sector", -->
-<!--                 subtitle = "From 2008 to 2022", -->
-<!--                 caption = "SWIX (J400) Top 40 Indexes", -->
-<!--                 xlabel = "Date", -->
-<!--                 ylabel = "Weight") -->
-<!-- ``` -->
+```{r message=FALSE, warning=FALSE}
+weights_graph_q3.7_func(df_data = rebalance_col_J200,
+                title = "Portfolio Weights of the SWIX Index by Sector",
+                subtitle = "From 2008 to 2022",
+                caption = "SWIX (J400) Top 40 Indexes",
+                xlabel = "Date",
+                ylabel = "Weight")
+```
 
 # Capping Indexes
 

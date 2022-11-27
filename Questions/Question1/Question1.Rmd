@@ -9,10 +9,14 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 5, fig.pos="H", fig.pos = 'H')
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+            fig.width = 6, fig.height = 5, fig.pos="H", fig.pos = 'H')
 # Note: Include = FALSE implies the code is executed, but not printed in your pdf.
 # warning and message = FALSE implies ugly messages and warnings are removed from your pdf.
 # These should be picked up when you execute the command chunks (code sections below) in your rmd, not printed in your paper!
+library(tidyverse)
+list.files('code/', full.names = T, recursive = T) %>% 
+    .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
 # Lets load in example data, and see how this can be stored and later called from your 'data' folder.
 library(tidyverse)
@@ -23,38 +27,128 @@ AI_Fund <- read_rds("data/AI_Max_Fund.rds")
 ```
 
 
-<!-- ############################## -->
-<!-- # Start Writing here: -->
-<!-- ############################## -->
+# Introduction 
 
-# Introduction \label{Introduction}
+I begin by addressing the missing values in the ASISA data. I make use of the 'q1_impute_missing_values' from the practicals to address the missing values using the 'Drawn_Distribution_Collective' method as some Funds have no data at all and therefore values are imputed from the distribution of all ASISA Funds data. This has the benefit of imputing values that will conform to performance that is tied to the state of the economy. 
 
+I then calculate monthly average returns for ASISA Funds so to make them comparable with the other returns data.
+
+```{r}
+
+return_mat_Quick = ASISA %>%  
+    mutate(Return = Returns) %>% 
+    select(date, Name, Return) %>% 
+   # filter(date > lubridate::ymd(20080101)) %>% 
+    spread(Name, Return)
+
+# need date column for impute_missing_returns
+ASISA_imputed_data <- impute_missing_returns(return_mat = return_mat_Quick,
+                     impute_returns_method = "Drawn_Distribution_Collective")
+
+
+# Calc montly average returns for ASISA Funds
+
+ASISA <- ASISA_imputed_data %>% gather(Name, Return, -date) %>% 
+    arrange(date) %>%
+    group_by(date) %>%
+    mutate(Asisa = mean(Return)) %>% # Name ave returns Asisa for left_join
+    select(date, Asisa) %>% 
+    unique()
+    
+
+```
+
+I combine the data with 'left_join', make it tidy and use 'slice' to remove NAs, therefore each data set has the same start date for the analysis.
 
 ```{r}
 
 # this works if calc individually firms
-q1_data_combined <- left_join(msci %>% 
-                        spread(Name, Return) %>%
-                        select(date, MSCI_ACWI, MSCI_RE),
-                    
-                        bonds %>% spread(Name, Return) %>% select(date, US_10Yr),
+q1_data_combined <- left_join(ASISA,
+                              
+                            AI_Fund %>%  spread(Tickers, Returns),
                                 by = "date") %>% 
     
                     left_join(.,
-                            comms %>% spread(Name, Return) %>% select(date, Bcom_Index),
-                                by = "date" )
+                            BM %>%  spread(Tickers, Returns),
+                                by = "date" ) %>% 
+                    gather(Tickers, ret, -date) %>% 
+                    arrange(date) %>% 
+                    ungroup() %>% 
+                    slice(-2,-5)
+                     # to remove NAs and therefore each data set has the same start date
 
+```
+
+# Rolling 3 Year Annualized Returns
+
+I then make use of a function I created for homework to calculate the 3 year annualized rolling returns for the  ASISA average actively managed fund, the SWIX Index (J433) and the systematic AI fund.
+
+From the graph below, the average actively managed fund has been outperformed by the SWIX index and by the AI fund. And while this rolling returns is useful for evaluating and comparing the performance of different indices, it can be a misleading figure as early outperformance can greatly skew later performance.
+
+
+```{r message=FALSE, warning=FALSE}
+
+q1_rolling_returns_func(df_data = plotdf_roll,
+                     title = "Cumulative Returns: 3 Year Rolling Returns ",
+                     subtitle = "From 2002 to 2022",
+                     caption = "SWIX Index (J433), ASISA Active Manager Funds, AI Funds (Our_Fund)",
+                     xlabel = "Year",
+                     ylabel = "Returns")
+
+
+```
+
+# Annualized Returns
+
+I then use some of some code from class and append the code to display the annualized returns for each portfolio at different year intervals.
+
+As can be seen from the graph below historically the SWIX and AI fund have performed better than the average active manager over the long term. However, over the last 3 years fund active fund managers have outperformed the more passive funds.
+
+```{r message=FALSE, warning=FALSE}
+
+q1.1_annualized_return_table(df_data = q1_data_combined,
+                                title = "Annualized Portfolio Returns",
+                                caption = "Note: Retunrns in excess of a year are in annualized terms",
+                                xlabel = "",
+                                ylabel = "Annualized Returns (%)")
+
+
+```
+
+# Performance of Funds Less Fees
+
+I then make use of some code from the practical to demonstrate what happens to cumulative returns over for different scales of management fees that are applicable to the particular investment portfolio. I add a baseline of cumulative returns without fees charged (0%).
+
+The graphs below show how cumulative returns are effected over time by fees. Actively managed fees are the highest and decrease returns by at least 17,7% since January 2003. Passively managed funds such as SWIX and AI fund decrease substantially less over the same period when compared to active managers. Passively managed investments decreased by at least 3.8% since January 2003. It can be the case that active managers outperform passive managers, however, when adjusted for fees the average active manager underperforms comapred to passive bench like the SWIX.
+
+```{r}
+
+Cum_Fee_Comparison_1.1(Asisa_funds, Fee = 0, Start = ymd(20030101),
+                   # Added purely for figure adjustment:
+                   Gap = 3, Lvlset = 7,
+                   mnthfwd = 18)
+
+```
+
+Performance of the AI Funds Less Fees
+
+```{r}
+#Impact from inception (2002)
+Cum_Fee_Comparison_1.2(AI_funds, Fee = 0*1e-4, Start = ymd(20030101),
+                   # Added purely for figure adjustment:
+                   Gap = 3, Lvlset = 7,
+                   mnthfwd = 18)
 
 ```
 
 
 
-
-
-
-
-
 ```{r}
+
+Cum_Fee_Comparison_1.3(SWIX_funds, Fee = 0, Start = ymd(20030101),
+                       # Added purely for figure adjustment:
+                       Gap = 3, Lvlset = 7,
+                       mnthfwd = 18)
 
 ```
 

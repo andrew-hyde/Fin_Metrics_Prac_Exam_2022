@@ -13,8 +13,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 454177 24.3     975545 52.1   644205 34.5
-    ## Vcells 820089  6.3    8388608 64.0  1635495 12.5
+    ## Ncells 454460 24.3     976354 52.2   644205 34.5
+    ## Vcells 821938  6.3    8388608 64.0  1635495 12.5
 
 ``` r
 library(tidyverse)
@@ -71,6 +71,156 @@ Texevier::create_template(
             template_name = "Question7", build_project = TRUE, open_project = FALSE)
 ```
 
+# Question 1: Systematic AI Fund
+
+``` r
+library(tidyverse)
+ASISA <- read_rds("data/ASISA.rds")
+BM <- read_rds("data/Capped_SWIX.rds")
+AI_Fund <- read_rds("data/AI_Max_Fund.rds")
+```
+
+I begin by addressing the missing values in the ASISA data. I make use
+of the ‘q1_impute_missing_values’ from the practicals to address the
+missing values using the ‘Drawn_Distribution_Collective’ method as some
+Funds have no data at all and therefore values are imputed from the
+distribution of all ASISA Funds data. This has the benefit of imputing
+values that will conform to performance that is tied to the state of the
+economy.
+
+I then calculate monthly average returns for ASISA Funds so to make them
+comparable with the other returns data.
+
+``` r
+return_mat_Quick = ASISA %>%  
+    mutate(Return = Returns) %>% 
+    select(date, Name, Return) %>% 
+   # filter(date > lubridate::ymd(20080101)) %>% 
+    spread(Name, Return)
+
+# need date column for impute_missing_returns
+ASISA_imputed_data <- impute_missing_returns(return_mat = return_mat_Quick,
+                     impute_returns_method = "Drawn_Distribution_Collective")
+
+
+# Calc montly average returns for ASISA Funds
+
+ASISA <- ASISA_imputed_data %>% gather(Name, Return, -date) %>% 
+    arrange(date) %>%
+    group_by(date) %>%
+    mutate(Asisa = mean(Return)) %>% # Name ave returns Asisa for left_join
+    select(date, Asisa) %>% 
+    unique()
+```
+
+I combine the data with ‘left_join’, make it tidy and use ‘slice’ to
+remove NAs, therefore each data set has the same start date for the
+analysis.
+
+``` r
+# this works if calc individually firms
+q1_data_combined <- left_join(ASISA,
+                              
+                            AI_Fund %>%  spread(Tickers, Returns),
+                                by = "date") %>% 
+    
+                    left_join(.,
+                            BM %>%  spread(Tickers, Returns),
+                                by = "date" ) %>% 
+                    gather(Tickers, ret, -date) %>% 
+                    arrange(date) %>% 
+                    ungroup() %>% 
+                    slice(-2,-5)
+                     # to remove NAs and therefore each data set has the same start date
+```
+
+## Rolling 3 Year Annualized Returns
+
+I then make use of a function I created for homework to calculate the 3
+year annualized rolling returns for the ASISA average actively managed
+fund, the SWIX Index (J433) and the systematic AI fund.
+
+From the graph below, the average actively managed fund has been
+outperformed by the SWIX index and by the AI fund. And while this
+rolling returns is useful for evaluating and comparing the performance
+of different indices, it can be a misleading figure as early
+outperformance can greatly skew later performance.
+
+``` r
+q1_rolling_returns_func(df_data = plotdf_roll,
+                     title = "Cumulative Returns: 3 Year Rolling Returns ",
+                     subtitle = "From 2002 to 2022",
+                     caption = "SWIX Index (J433), ASISA Active Manager Funds, AI Funds (Our_Fund)",
+                     xlabel = "Year",
+                     ylabel = "Returns")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-6-1.png)
+
+## Annualized Returns
+
+I then use some of some code from class and append the code to display
+the annualized returns for each portfolio at different year intervals.
+
+As can be seen from the graph below historically the SWIX and AI fund
+have performed better than the average active manager over the long
+term. However, over the last 3 years fund active fund managers have
+outperformed the more passive funds.
+
+``` r
+q1.1_annualized_return_table(df_data = q1_data_combined,
+                                title = "Annualized Portfolio Returns",
+                                caption = "Note: Retunrns in excess of a year are in annualized terms",
+                                xlabel = "",
+                                ylabel = "Annualized Returns (%)")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-7-1.png)
+
+## Performance of Funds Less Fees
+
+I then make use of some code from the practical to demonstrate what
+happens to cumulative returns over for different scales of management
+fees that are applicable to the particular investment portfolio. I add a
+baseline of cumulative returns without fees charged (0%).
+
+The graphs below show how cumulative returns are effected over time by
+fees. Actively managed fees are the highest and decrease returns by at
+least 17,7% since January 2003. Passively managed funds such as SWIX and
+AI fund decrease substantially less over the same period when compared
+to active managers. Passively managed investments decreased by at least
+3.8% since January 2003. It can be the case that active managers
+outperform passive managers, however, when adjusted for fees the average
+active manager underperforms comapred to passive bench like the SWIX.
+
+``` r
+Cum_Fee_Comparison_1.1(Asisa_funds, Fee = 0, Start = ymd(20030101),
+                   # Added purely for figure adjustment:
+                   Gap = 3, Lvlset = 7,
+                   mnthfwd = 18)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+``` r
+#Impact from inception (2002)
+Cum_Fee_Comparison_1.2(AI_funds, Fee = 0*1e-4, Start = ymd(20030101),
+                   # Added purely for figure adjustment:
+                   Gap = 3, Lvlset = 7,
+                   mnthfwd = 18)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-9-1.png)
+
+``` r
+Cum_Fee_Comparison_1.3(SWIX_funds, Fee = 0, Start = ymd(20030101),
+                       # Added purely for figure adjustment:
+                       Gap = 3, Lvlset = 7,
+                       mnthfwd = 18)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
 # Question 2: Yield Spread 
 
 Economists have recently pointed out that the current yield spreads in
@@ -116,7 +266,7 @@ graph_q2.1_func(df_data = df_q2.1_data,
                 ylabel = "Yield")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-4-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-12-1.png)
 
 To further investigate this topic I combine the available data for this
 question using ‘left_join’. I make use of this combined data set to
@@ -173,7 +323,7 @@ graph_q2.3_func(df_data = df_q2.3_data,
                 ylabel = "Percentage (%)")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-6-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-14-1.png)
 
 ## Domestic and Foreign Yields
 
@@ -196,7 +346,7 @@ graph_q2.2_func(df_data = df_q2.2_data,
                 ylabel = "")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-7-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-15-1.png)
 
 ``` r
 # to deetermine which countries are included in the data.
@@ -227,7 +377,7 @@ graph_q2.4_func(df_data = df_q2.4_data,
                 ylabel = "")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-9-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-17-1.png)
 
 # Question3: Portfolio Construction
 
@@ -284,7 +434,7 @@ graph_q3.1_func(df_data = T40_imputed,
                 ylabel = "Percentage %")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-12-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-20-1.png)
 
 ## Stratification of Indexes
 
@@ -302,7 +452,7 @@ graph_q3.2_func(df_data = T40_imputed,
                 ylabel = "Percentage %")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-13-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-21-1.png)
 
 It appears that both indexes weight industrials similarly in their
 portfolios.
@@ -316,7 +466,7 @@ graph_q3.3_func(df_data = T40_imputed,
                 ylabel = "Percentage %")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-14-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-22-1.png)
 
 From the graph below, it appears that the ALSI weights resources more
 heavily than the SWIX and therefore outperforms the SWIX.
@@ -330,7 +480,7 @@ graph_q3.4_func(df_data = T40_imputed,
                 ylabel = "Percentage %")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-15-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-23-1.png)
 
 To determine the weights per sector for each index. I select the Top 40
 stocks per date and then re-scale the weight to add to 1 at each date. I
@@ -350,7 +500,7 @@ weights_graph_q3.6_func(df_data = rebalance_col_J200,
                 ylabel = "Weight")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-16-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-24-1.png)
 
 ``` r
 weights_graph_q3.7_func(df_data = rebalance_col_J200,
@@ -361,7 +511,7 @@ weights_graph_q3.7_func(df_data = rebalance_col_J200,
                 ylabel = "Weight")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-17-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-25-1.png)
 
 ## Capping Indexes
 
@@ -379,7 +529,7 @@ cum_returns_q3.5_func(df_data = RebDays,
                       ylabel = "Percentage %")  
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-18-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-26-1.png)
 
 # Question 7: Portfolio Construction
 
@@ -815,10 +965,10 @@ to achieve higher returns.
 chart.Weights(opt_minrisk, main = "Risk Minimized Portfolio: Rebalancing Weights")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-24-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-32-1.png)
 
 ``` r
 chart.Weights(opt_maxret, main = "Return Maximizing Portfolio: Rebalancing Weights")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-25-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-33-1.png)
