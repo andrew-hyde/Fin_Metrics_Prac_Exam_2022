@@ -191,7 +191,7 @@ AI fund decrease substantially less over the same period when compared
 to active managers. Passively managed investments decreased by at least
 3.8% since January 2003. It can be the case that active managers
 outperform passive managers, however, when adjusted for fees the average
-active manager underperforms comapred to passive bench like the SWIX.
+active manager underperforms compared to passive bench like the SWIX.
 
 ``` r
 Cum_Fee_Comparison_1.1(Asisa_funds, Fee = 0, Start = ymd(20030101),

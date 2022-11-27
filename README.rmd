@@ -163,7 +163,7 @@ q1.1_annualized_return_table(df_data = q1_data_combined,
 
 I then make use of some code from the practical to demonstrate what happens to cumulative returns over for different scales of management fees that are applicable to the particular investment portfolio. I add a baseline of cumulative returns without fees charged (0%).
 
-The graphs below show how cumulative returns are effected over time by fees. Actively managed fees are the highest and decrease returns by at least 17,7% since January 2003. Passively managed funds such as SWIX and AI fund decrease substantially less over the same period when compared to active managers. Passively managed investments decreased by at least 3.8% since January 2003. It can be the case that active managers outperform passive managers, however, when adjusted for fees the average active manager underperforms comapred to passive bench like the SWIX.
+The graphs below show how cumulative returns are effected over time by fees. Actively managed fees are the highest and decrease returns by at least 17,7% since January 2003. Passively managed funds such as SWIX and AI fund decrease substantially less over the same period when compared to active managers. Passively managed investments decreased by at least 3.8% since January 2003. It can be the case that active managers outperform passive managers, however, when adjusted for fees the average active manager underperforms compared to passive bench like the SWIX.
 
 ```{r}
 
