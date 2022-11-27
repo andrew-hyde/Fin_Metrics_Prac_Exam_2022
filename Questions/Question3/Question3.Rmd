@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Question 3: Portfolio Construction"
+title: "Question 3: Portfolio Constriuction"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -26,9 +26,9 @@ Thesis_FP: FALSE
 # Comment: ----- Follow this pattern for up to 5 authors
 AddTitle: TRUE # Use FALSE when submitting to peer reviewed platform. This will remove author names.
 Author1: "Andrew Hyde"  # First Author - note the thanks message displayed as an italic footnote of first page.
-# Ref1: "Stellenbosch University, South Africa" # First Author's Affiliation
-# Email1: "23365935\\@sun.ac.za" # First Author's Email address
-# 
+Ref1: "Stellenbosch University, South Africa" # First Author's Affiliation
+Email1: "23365935\\@sun.ac.za" # First Author's Email address
+
 # Author2: "John Smith"
 # Ref2: "Some other Institution, Cape Town, South Africa"
 # Email2: "John\\@gmail.com"
@@ -92,7 +92,7 @@ output:
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
 abstract: |
-  Abstract to be written here.
+  A brief discussion on methodologies of SWIX and ALSI indexes by looking at the performance over time.
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -136,27 +136,21 @@ RebDays <- read_rds("data/Rebalance_days.rds")
 <!-- # Start Writing here: -->
 <!-- ############################## -->
 
-# Introduction \label{Introduction}
+# Introduction
 
-Using the information on the ALSI (J200) and SWIX (J400) top 40 Indexes, write a brief
-research report in Texevier where you:
-
-Compare the SWIX and ALSI methodologies by looking at the performance of different
-size indexes (large, mid and small caps), sector exposures and stock concentration over
-time. Use your discretion in writing a short report highlighting differences in the return
-profiles
+Using the information on the ALSI (J200) and SWIX (J400) Top 40 Indexes, this report offers a brief discussion on methodologies of SWIX and ALSI indexes by looking at the performance of difference explained differing sector exposure.
 
 # The Data
-I make use of the function from the practical to impute missing returns
+I make use of the function from the practical to impute missing returns, if any, in the data.
 
 ```{r message=FALSE, warning=FALSE}
-    
-#Using the impute_missing_returns function replace the NA with values from the same distribution
+
+#Using the impute_missing_returns function replace the NA with values from the same distribution in the retunrs column
 new_data_T40 <- impute_missing_returns(return_mat = T40 %>%
             select(date, Tickers, Return) %>%
-            filter(date > lubridate::ymd(20080101)) %>% 
+            filter(date > lubridate::ymd(20080101)) %>%
             spread(Tickers, Return),
-            impute_returns_method = "Average") %>% 
+            impute_returns_method = "Average") %>%
             gather(Tickers, Return, -date)
 
 
@@ -169,11 +163,6 @@ T40_imputed$Tickers <- gsub("SJ|Equity", "", T40_imputed$Tickers)
 
 
 ```
-
-
-# Stratification of Idexes
-You may use stratification of data/usdzar.rds to provide insight into the different return profiles of both methodologies during different periods of currency performance and
-volatility.
 
 Here I reply on the courses practical notes. I begin by creating the index returns using this capped weight estimator using the tbl2xts framework. Begin by plotting the culumative returns for each index.
 
@@ -188,7 +177,9 @@ graph_q3.1_func(df_data = T40_imputed,
 
 ```
 
-Break down cumulative returns by industry
+# Stratification of Indexes
+
+Next, I Break down cumulative returns by industry to get a better idea of reasons for different performance. I begin with the financials. From the graph below it appears that the SWIX weights financials more heavily than the ALSI and therefore outperforms the ALSI.
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -201,6 +192,7 @@ graph_q3.2_func(df_data = T40_imputed,
 
 ```
 
+It appears that both indexes weight industrials similarly in their portfolios.
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -214,7 +206,7 @@ graph_q3.3_func(df_data = T40_imputed,
 
 ```
 
-
+From the graph below, it appears that the ALSI weights resources more heavily than the SWIX and therefore outperforms the SWIX.
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -227,12 +219,32 @@ graph_q3.4_func(df_data = T40_imputed,
 
 ```
 
+To determine the weights per sector for each index. I select the Top 40 stocks per date and then re-scale the weight to add to 1 at each date. I then group and summarise the weights by sector.
 
+I one can see from the Portfolio Weights graphs below both indexes allocate a substantial amount to industrials. However, performance differences between the two indexes can be explained by the differences in weights between financials and resources.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+weights_graph_q3.6_func(df_data = rebalance_col_J200,
+                title = "Portfolio Weights of the ALSI Index by Sector",
+                subtitle = "From 2008 to 2022",
+                caption = "ALSI (J200) Top 40 Indexes",
+                xlabel = "Date",
+                ylabel = "Weight")
+```
+
+
+<!-- ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- weights_graph_q3.7_func(df_data = rebalance_col_J200, -->
+<!--                 title = "Portfolio Weights of the SWIX Index by Sector", -->
+<!--                 subtitle = "From 2008 to 2022", -->
+<!--                 caption = "SWIX (J400) Top 40 Indexes", -->
+<!--                 xlabel = "Date", -->
+<!--                 ylabel = "Weight") -->
+<!-- ``` -->
 
 # Capping Indexes
-Answer the JSE’s question on applying capping to the indexes - in particular looking at
-the impact different capping levels would have had on both the SWIX and ALSI (6% and
-10%). Use data/Rebalance days.rds to identify the Rebalance Days during past quarterly rebalances.
+
+The impact different capping levels would on both the SWIX and ALSI (6% and 10%), is that the ALSI(J200) outperforms the SWIX by an slightly greater margin than before the capping. This may be due higher weights of financial equities which have performed well recently.
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -241,28 +253,10 @@ cum_returns_q3.5_func(df_data = RebDays,
                       subtitle = "ALSI (10%) and SWIX (6%), from 2008 to 2022",
                       caption = "ALSI (J200) and SWIX (J400) top 40 Indexes",
                       xlabel = "Date",
-                      ylabel = "Percentage %")  
+                      ylabel = "Percentage %")
 
 
 ```
-
-
-
-```{r}
-#--------------------------------------------------------------------------------
-# Now, to map this across all the dates, we can use purrr::map_df as follows:
-Capped_df_6percent <- 
-    rebalance_col %>% 
-    # Split our df into groups (where the groups here are the rebalance dates:
-    group_split(RebalanceTime) %>% 
-    # Apply the function Proportional_Cap_Foo to each rebalancing date:
-    map_df(~Proportional_Cap_Func(., W_Cap = 0.06) ) %>% select(-RebalanceTime)
-
-
-```
-
-
-
 
 
 

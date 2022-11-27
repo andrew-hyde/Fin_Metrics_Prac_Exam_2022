@@ -1,12 +1,12 @@
 
-graph_q3.2_func <- function(df_data, title, subtitle, caption, xlabel, ylabel){
+graph_q3.4_func <- function(df_data, title, subtitle, caption, xlabel, ylabel){
 
     library(tidyverse)
     library(tbl2xts)
 
 # create a xts of returns for each equity over time
 T40_return <- df_data %>%
-    filter(Sector == "Financials") %>%
+    filter(Sector == "Resources") %>%
     select(date, Tickers, Return) %>%
         tbl_xts(., cols_to_xts = Return, spread_by = Tickers)
 
@@ -14,7 +14,7 @@ T40_return <- df_data %>%
 # J400 weights
 # create a xts of weights for each equity over time
 weights_J400 <- df_data %>%
-    filter(Sector == "Financials") %>%
+    filter(Sector == "Resources") %>%
     select(date, Tickers, J400) %>%
     arrange(date) %>% group_by(Tickers) %>%
     tbl_xts(cols_to_xts = J400, spread_by = Tickers)
@@ -35,8 +35,8 @@ weighted_returns_J400 <- returns_J400 %>% mutate(cumulative_returns_J400 = cumpr
 # J200 weights
 # create a xts of weights for each equity over time
 weights_J200 <- df_data %>%
-        filter(Sector == "Financials") %>%
-        select(date, Tickers, J200) %>%
+    filter(Sector == "Resources") %>%
+    select(date, Tickers, J200) %>%
         arrange(date) %>% group_by(Tickers) %>%
         tbl_xts(cols_to_xts = J200, spread_by = Tickers)
 
@@ -56,18 +56,18 @@ weighted_returns_J200 <- returns_J200 %>% mutate(cumulative_returns_J200 = cumpr
 
 #left_join(weighted_returns_J400, weighted_returns_J200, by = "date")
 
-df_q3.2_data <- left_join(returns_J400 %>% mutate(cumulative_returns_J400 = cumprod(1+port_returns_J400)),
+df_q3.4_data <- left_join(returns_J400 %>% mutate(cumulative_returns_J400 = cumprod(1+port_returns_J400)),
                         returns_J200 %>% mutate(cumulative_returns_J200 = cumprod(1+port_returns_J200)),
                         by = "date")
 
-df_q3.2_data_tidy <- df_q3.2_data %>%
+df_q3.4_data_tidy <- df_q3.4_data %>%
     select(date, cumulative_returns_J400, cumulative_returns_J200) %>%
     gather(Name, Value, -date)
 
 #-------------------------------------------------------------------------------
 
 
-graph <-  ggplot(df_q3.2_data_tidy) +
+graph <-  ggplot(df_q3.4_data_tidy) +
         geom_line(aes(x = date, y = Value, color = Name), alpha = 0.8,
                   size = 0.5) +
 
@@ -93,6 +93,4 @@ graph <-  ggplot(df_q3.2_data_tidy) +
     graph
 
 }
-
-
 

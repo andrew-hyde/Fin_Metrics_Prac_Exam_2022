@@ -169,7 +169,7 @@
 
 \begin{frontmatter}  %
 
-\title{Question 3: Portfolio Constriuction}
+\title{Question 6: MSCI Funds}
 
 % Set to FALSE if wanting to remove title (for submission)
 
@@ -188,8 +188,7 @@
 
 \begin{abstract}
 \small{
-A brief discussion on methodologies of SWIX and ALSI indexes by looking
-at the performance over time.
+Abstract to be written here.
 }
 \end{abstract}
 
@@ -227,54 +226,52 @@ at the performance over time.
 
 
 \hypertarget{introduction}{%
-\section{Introduction}\label{introduction}}
+\section{\texorpdfstring{Introduction
+\label{Introduction}}{Introduction }}\label{introduction}}
 
-Using the information on the ALSI (J200) and SWIX (J400) Top 40 Indexes,
-this report offers a brief discussion on methodologies of SWIX and ALSI
-indexes by looking at the performance of difference explained differing
-sector exposure.
+Using the MSCI total return indexes, write a short report where you
+discuss the following (please use your discretion on which returns you
+want to use to make your argument):
 
-\hypertarget{the-data}{%
-\section{The Data}\label{the-data}}
+Over the past decade, the return profiles of different asset classes
+(Equities, Commodities, Real Estate and Bonds) have increased in their
+convergence (i.e., diversification by holding different asset classes
+have reduced).
 
-I make use of the function from the practical to impute missing returns,
-if any, in the data.
+Show how these comovements have increased in the past decade;
 
-Here I reply on the courses practical notes. I begin by creating the
-index returns using this capped weight estimator using the tbl2xts
-framework. Begin by plotting the culumative returns for each index.
+Show to what extent these return profiles have homogenized by
+considering the commonality of the sources of returns over time.
 
-\includegraphics{Question3_files/figure-latex/unnamed-chunk-2-1.pdf}
+In your answer, be creative in using visual and statistical measures to
+convey the issue of how co-movement have changed over time
 
-\hypertarget{stratification-of-indexes}{%
-\section{Stratification of Indexes}\label{stratification-of-indexes}}
+\hypertarget{data}{%
+\section{Data}\label{data}}
 
-Next, I Break down cumulative returns by industry to get a better idea
-of reasons for different performance. I begin with the financials. From
-the graph below it appears that the SWIX weights financials more heavily
-than the ALSI and therefore outperforms the ALSI.
+I begin by selecting specific assets from the data sets provided and
+follow an approach similar to the practical. I select the MSCI\_ACWI
+index to represent Equities, the BCom\_Index to represent Commodities,
+the MSCI\_RE to represent Real Estate and the US\_10Yr to represent
+bonds. I calculate returns for the daily price data before combining the
+data to perform the analysis, followed by log scaling and centering the
+data. This was tricky to accomplish in one go so I split it up into its
+parts, wrangled the data and then combined the data.
 
-\includegraphics{Question3_files/figure-latex/unnamed-chunk-3-1.pdf}
+\hypertarget{dcc-model}{%
+\section{DCC Model}\label{dcc-model}}
 
-It appears that both indexes weight industrials similarly in their
-portfolios.
+I follow the practical code closely to per
 
-\includegraphics{Question3_files/figure-latex/unnamed-chunk-4-1.pdf}
+Now the DCC model has been estimated.
 
-From the graph below, it appears that the ALSI weights resources more
-heavily than the SWIX and therefore outperforms the SWIX.
+\includegraphics{Question6_files/figure-latex/unnamed-chunk-4-1.pdf}
 
-\includegraphics{Question3_files/figure-latex/unnamed-chunk-5-1.pdf}
+\includegraphics{Question6_files/figure-latex/unnamed-chunk-5-1.pdf}
 
-\hypertarget{capping-indexes}{%
-\section{Capping Indexes}\label{capping-indexes}}
+\includegraphics{Question6_files/figure-latex/unnamed-chunk-6-1.pdf}
 
-The impact different capping levels would on both the SWIX and ALSI (6\%
-and 10\%), is that the ALSI(J200) outperforms the SWIX by an slightly
-greater margin than before the capping. This may be due higher weights
-of financial equities which have performed well recently.
-
-\includegraphics{Question3_files/figure-latex/unnamed-chunk-6-1.pdf}
+\includegraphics{Question6_files/figure-latex/unnamed-chunk-7-1.pdf}
 
 \bibliography{Tex/ref}
 
