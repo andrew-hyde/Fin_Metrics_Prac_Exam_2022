@@ -26,7 +26,7 @@ graph_q4.2_func <- function(df_data, title, subtitle, caption, xlabel, ylabel){
              x = xlabel,
              y = ylabel) +
 
-        theme() +
+        fmxdat::theme_fmx() +
         theme(axis.text.x = element_text(angle = 0, hjust = -1)) +
         theme(legend.position="") +
         theme(legend.title = element_blank())

@@ -14,7 +14,16 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 # warning and message = FALSE implies ugly messages and warnings are removed from your pdf.
 # These should be picked up when you execute the command chunks (code sections below) in your rmd, not printed in your paper!
 
-# Lets load in example data, and see how this can be stored and later called from your 'data' folder.
+library(tidyverse)
+library(urca)
+library(rugarch)
+library(tbl2xts)
+
+# load functions
+list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
+
+# read in the data, and see how this can be stored and later called from your 'data' folder.
+
 
 cncy <- read_rds("data/currencies.rds")
 cncy_Carry <- read_rds("data/cncy_Carry.rds")
@@ -25,41 +34,15 @@ bbdxy <- read_rds("data/bbdxy.rds")
 
 ```
 
+# Introduction
 
-<!-- ############################## -->
-<!-- # Start Writing here: -->
-<!-- ############################## -->
+The South African Rand (ZAR) over the past few years has been label one of the most volatile
+currencies. This report seeks to investigate this claim.
 
-# Introduction \label{Introduction}
+## Volatility of the South African Rand
 
-Using the currency data set (all relative to the USD) - I want you to comment on the following
-statements:
+Making use of the Currency Implied Volatility data, I arrange the currencies in descending order of average implied volatility from 1933 to 2021. Implied volatility is constructed using both option premiums to gauge the market foresees higher future volatility for a currency. From the table below one can see that the South African Rand has the largest average implied volatility from the sample of all countries. The table displays the 10 currencies with the highest average implied volatility.
 
-The South African rand (ZAR) has over the past few years been one of the most volatile
-currencies;
-
-The ZAR has generally performed well during periods where G10 currency carry trades
-have been favourable and these currency valuations relatively cheap. Globally, it has been
-one of the currencies that most benefit during periods where the Dollar is comparatively
-strong, indicating a risk-on sentiment.
-
-Use your discretion on what you use to measure volatility, which currencies you compare
-and how you arrive at your conclusions. Be creative in using tables, graphs and statistics to
-argue your points.
-
-```{r}
-
-
-
-```
-
-## Q5.1
-The South African rand (ZAR) has over the past few years been one of the most volatile
-currencies.
-
-Currency Implied Volatility (cncyIV), similar to the construction of the VIX index. Currency Implied Volatility uses both put and call option premiums to gauge the market's forward implied volatility of the currency. A higher value indicates the market foresees higher future volatility for a currency.
-
-Making use of the Currency Implied Volatility data, I arrange the currencies in descending order of volatility.
 ```{r}
 
 # Table of 20 most volatile stocks according to average volatility over 
@@ -67,36 +50,86 @@ Q5.1_vol_table_func(df_data = df_q5.1_cncyIV_data)
 
 ```
 
-Plot the volatility of Top 5 most volatile
+Averages may be misleading, therefore I plot the the implied volatility of the top 5 most volatile currencies to get a sense of if the Rand has been consistently been the most volatile or the average is high because of historically high period with in the full data set.
+
+From the graph below it appears that the Rand experienced large price swings in the early 2000's compared to its counter parts, but since then has had relatively similar performance to the other plotted currencies. 
 
 ```{r}
 
 Q5.1_graph_func_vol(df_data = df_q5.1_cncyIV_graph_data,
                     title = "Currency Implied Volatility per Country",
-                    subtitle = "Top 10 Most Volatile",
+                    subtitle = "Top 5 Most Volatile",
                     caption = "Data Source:",
                     xlabel = "Year",
                     ylabel = "Implied Volatility")
 
 ```
-From the table and graph, RSA currency appears to be the most volatile.
+
+I therefore reduce the sample period to the last 5 years in order to determine if currency has been one of the most volatile in recent years. Below display a table of the currency implied volatility data set from 2016 to 2021 and arrange the currencies in descending order of average implied volatility.
+
+```{r}
+
+Q5.2_vol_table_func(df_data = df_q5.1_cncyIV_data)
+
+```
 
 
-##  Q5.2
+From both tables and graph, the South African Rand appears to be the most volatile according to how the market foresees the Rand will behave. 
 
-The ZAR has generally performed well during periods where G10 currency carry trades
-have been favourable and these currency valuations relatively cheap. Globally, it has been
-one of the currencies that most benefit during periods where the Dollar is comparatively
-strong, indicating a risk-on sentiment.
+##  Q5.2 GARCH estimates
+
+The question therefore becomes how much of the Rand's volatility is actually volatility related to the information and market forces at a particular time and not on the momentum of previous periods of volatility momentum from previous periods, given that periods of volatility tends to cluster and may not give an accurate measure of volatility at that point in time due this persistence.
+
+I therefore make use of a GARCH model to calculate volatility estimates by decomposing the residuals of currency into its structural volatility estimates and noise.
+
+I begin by testing the for stationary and find as expected the Rand-Dollar exchange rate is non stationary, as the absolute value of the test statistic does not exceed the absolute value of the critical value.
+
+```{r}
+
+price <- cncy %>% 
+            filter(Name == "SouthAfrica_Cncy") %>% 
+             pull(Price)
+
+library(urca)
+summary(ur.df(price, type="none", lags = 1, selectlags = c("BIC")))
+
+```
+
+I make use of the Rand-Dollar exchange rate begin by wrangling, scale and calculating the log first differences of the Rand data to make the data stationary so I can make can accurately determine GARCH estimates.
+
+I then test for stationary again and find as expected the transformed Rand-Dollar exchange rate stationary, as the absolute value of the test statistic does exceed the absolute value of the critical value. Therefore, the errors are now white noise.
+
+```{r}
+
+log_diff_price <- cncy %>% 
+                    group_by(Name) %>% 
+                    filter(Name == "SouthAfrica_Cncy") %>% 
+                    mutate(dlogret = log(Price) - log(lag(Price))) %>% 
+                    mutate(scaledret = (dlogret - mean(dlogret, na.rm = T))) %>% 
+                    filter(date > first(date)) %>% 
+                        ungroup() %>% pull(scaledret)
+
+library(urca)
+summary(ur.df(log_diff_price, type="none", lags = 1, selectlags = c("BIC"))) 
 
 
-
-We use the Deutsche Bank G10 Harvest Index (DBHVG10U) as the proxy for the returns of a carry
-strategy.This index reflects the return of being long the 3 high-yielding currencies
-against being short the 3 low-yielding currencies within the G10 currency universe.
-The index is rebalanced quarterly. Every quarter the currencies are re-ranked
-according to their current 3-month Libor rate. The Bloomberg code for this factor is
-DBHVG10U Index
+```
 
 
+I amend some code from the practicals and nested it within a graphing function to render a comparison between the currency returns sigma, which contains noise and is plotted on the graph in black, and the noise reduced Sigma estimate from the GARCH model plotted in red. Therefore, the volatility of the Rand maybe be overstated before controlling for noise.
+
+
+```{r message=FALSE, warning=FALSE}
+
+
+q5_GARCH_Graph(df_data = cncy,
+               title = "Comparison: Currency Returns Sigma vs Sigma from Garch",
+               subtitle = "USD Dollar to Rand Exchange Rate",
+               caption = "Red line - noise reduced actual volatility
+               Black line = Red line + Noise",
+               xlabel = "",
+               ylabel = "Volatility/Sigma (%)")
+
+
+```
 

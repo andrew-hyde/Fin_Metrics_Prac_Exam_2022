@@ -13,8 +13,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 454460 24.3     976354 52.2   644205 34.5
-    ## Vcells 821938  6.3    8388608 64.0  1635495 12.5
+    ## Ncells 454926 24.3     977685 52.3   644205 34.5
+    ## Vcells 825568  6.3    8388608 64.0  1635495 12.5
 
 ``` r
 library(tidyverse)
@@ -391,7 +391,7 @@ T40 <- read_rds("data/T40.rds")
 RebDays <- read_rds("data/Rebalance_days.rds")
 ```
 
-## Introduction 
+## Introduction
 
 Using the information on the ALSI (J200) and SWIX (J400) top 40 Indexes,
 this report offers a brief discussion on methodologies of SWIX and ALSI
@@ -531,6 +531,468 @@ cum_returns_q3.5_func(df_data = RebDays,
 
 ![](README_files/figure-markdown_github/unnamed-chunk-26-1.png)
 
+# Question 5: Volatility and GARCH estimates
+
+``` r
+library(tidyverse)
+library(urca)
+library(rugarch)
+```
+
+    ## Warning: package 'rugarch' was built under R version 4.2.2
+
+    ## Loading required package: parallel
+
+    ## 
+    ## Attaching package: 'rugarch'
+
+    ## The following object is masked from 'package:purrr':
+    ## 
+    ##     reduce
+
+    ## The following object is masked from 'package:stats':
+    ## 
+    ##     sigma
+
+``` r
+library(tbl2xts)
+
+# read in the data, and see how this can be stored and later called from your 'data' folder.
+cncy <- read_rds("data/currencies.rds")
+cncy_Carry <- read_rds("data/cncy_Carry.rds")
+cncy_value <- read_rds("data/cncy_value.rds")
+cncyIV <- read_rds("data/cncyIV.rds")
+bbdxy <- read_rds("data/bbdxy.rds")
+```
+
+## Introduction
+
+The South African Rand (ZAR) over the past few years has been label one
+of the most volatile currencies. This report seeks to investigate this
+claim.
+
+## Volatility of the South African Rand
+
+Making use of the Currency Implied Volatility data, I arrange the
+currencies in descending order of average implied volatility from 1933
+to 2021. Implied volatility is constructed using both option premiums to
+gauge the market foresees higher future volatility for a currency. From
+the table below one can see that the South African Rand has the largest
+average implied volatility from the sample of all countries. The table
+displays the 10 currencies with the highest average implied volatility.
+
+``` r
+# Table of 20 most volatile stocks according to average volatility over 
+Q5.1_vol_table_func(df_data = df_q5.1_cncyIV_data)
+```
+
+| Name        | Value |
+|:------------|------:|
+| SouthAfrica | 16.30 |
+| Brazil      | 15.12 |
+| Hungary     | 12.89 |
+| Turkey      | 12.87 |
+| Poland      | 12.58 |
+| Columbia    | 12.25 |
+| Russia      | 12.21 |
+| NZ          | 11.98 |
+| Mexico      | 11.49 |
+| Norway      | 11.37 |
+
+Implied Volatility
+
+Averages may be misleading, therefore I plot the the implied volatility
+of the top 5 most volatile currencies to get a sense of if the Rand has
+been consistently been the most volatile or the average is high because
+of historically high period with in the full data set.
+
+From the graph below it appears that the Rand experienced large price
+swings in the early 2000’s compared to its counter parts, but since then
+has had relatively similar performance to the other plotted currencies.
+
+``` r
+Q5.1_graph_func_vol(df_data = df_q5.1_cncyIV_graph_data,
+                    title = "Currency Implied Volatility per Country",
+                    subtitle = "Top 5 Most Volatile",
+                    caption = "Data Source:",
+                    xlabel = "Year",
+                    ylabel = "Implied Volatility")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-29-1.png)
+
+I therefore reduce the sample period to the last 5 years in order to
+determine if currency has been one of the most volatile in recent years.
+Below display a table of the currency implied volatility data set from
+2016 to 2021 and arrange the currencies in descending order of average
+implied volatility.
+
+``` r
+Q5.2_vol_table_func(df_data = df_q5.1_cncyIV_data)
+```
+
+| Name        | Value |
+|:------------|------:|
+| Turkey      | 16.54 |
+| SouthAfrica | 15.93 |
+| Brazil      | 15.67 |
+| Columbia    | 13.12 |
+| Mexico      | 13.06 |
+| Russia      | 12.30 |
+| Chile       | 10.98 |
+| Norway      |  9.89 |
+| Hungary     |  9.20 |
+| NZ          |  9.11 |
+
+Implied Volatility
+
+From both tables and graph, the South African Rand appears to be the
+most volatile according to how the market foresees the Rand will behave.
+
+## GARCH estimates
+
+The question therefore becomes how much of the Rand’s volatility is
+actually volatility related to the information and market forces at a
+particular time and not on the momentum of previous periods of
+volatility momentum from previous periods, given that periods of
+volatility tends to cluster and may not give an accurate measure of
+volatility at that point in time due this persistence.
+
+I therefore make use of a GARCH model to calculate volatility estimates
+by decomposing the residuals of currency into its structural volatility
+estimates and noise.
+
+I begin by testing the for stationary and find as expected the
+Rand-Dollar exchange rate is non stationary, as the absolute value of
+the test statistic does not exceed the absolute value of the critical
+value.
+
+``` r
+price <- cncy %>% 
+            filter(Name == "SouthAfrica_Cncy") %>% 
+             pull(Price)
+
+library(urca)
+summary(ur.df(price, type="none", lags = 1, selectlags = c("BIC")))
+```
+
+    ## 
+    ## ############################################### 
+    ## # Augmented Dickey-Fuller Test Unit Root Test # 
+    ## ############################################### 
+    ## 
+    ## Test regression none 
+    ## 
+    ## 
+    ## Call:
+    ## lm(formula = z.diff ~ z.lag.1 - 1 + z.diff.lag)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -0.78612 -0.03347 -0.00043  0.03007  1.52714 
+    ## 
+    ## Coefficients:
+    ##              Estimate Std. Error t value Pr(>|t|)
+    ## z.lag.1     0.0001139  0.0001171   0.972    0.331
+    ## z.diff.lag -0.0074499  0.0109781  -0.679    0.497
+    ## 
+    ## Residual standard error: 0.09566 on 8301 degrees of freedom
+    ## Multiple R-squared:  0.0001661,  Adjusted R-squared:  -7.482e-05 
+    ## F-statistic: 0.6894 on 2 and 8301 DF,  p-value: 0.5019
+    ## 
+    ## 
+    ## Value of test-statistic is: 0.9723 
+    ## 
+    ## Critical values for test statistics: 
+    ##       1pct  5pct 10pct
+    ## tau1 -2.58 -1.95 -1.62
+
+I make use of the Rand-Dollar exchange rate begin by wrangling, scale
+and calculating the log first differences of the Rand data to make the
+data stationary so I can make can accurately determine GARCH estimates.
+
+I then test for stationary again and find as expected the transformed
+Rand-Dollar exchange rate stationary, as the absolute value of the test
+statistic does exceed the absolute value of the critical value.
+Therefore, the errors are now white noise.
+
+``` r
+log_diff_price <- cncy %>% 
+                    group_by(Name) %>% 
+                    filter(Name == "SouthAfrica_Cncy") %>% 
+                    mutate(dlogret = log(Price) - log(lag(Price))) %>% 
+                    mutate(scaledret = (dlogret - mean(dlogret, na.rm = T))) %>% 
+                    filter(date > first(date)) %>% 
+                        ungroup() %>% pull(scaledret)
+
+library(urca)
+summary(ur.df(log_diff_price, type="none", lags = 1, selectlags = c("BIC"))) 
+```
+
+    ## 
+    ## ############################################### 
+    ## # Augmented Dickey-Fuller Test Unit Root Test # 
+    ## ############################################### 
+    ## 
+    ## Test regression none 
+    ## 
+    ## 
+    ## Call:
+    ## lm(formula = z.diff ~ z.lag.1 - 1 + z.diff.lag)
+    ## 
+    ## Residuals:
+    ##       Min        1Q    Median        3Q       Max 
+    ## -0.066516 -0.004618 -0.000208  0.004098  0.153965 
+    ## 
+    ## Coefficients:
+    ##            Estimate Std. Error t value Pr(>|t|)    
+    ## z.lag.1    -1.03747    0.01564 -66.324   <2e-16 ***
+    ## z.diff.lag  0.02124    0.01097   1.935    0.053 .  
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 0.009462 on 8300 degrees of freedom
+    ## Multiple R-squared:  0.5082, Adjusted R-squared:  0.508 
+    ## F-statistic:  4288 on 2 and 8300 DF,  p-value: < 2.2e-16
+    ## 
+    ## 
+    ## Value of test-statistic is: -66.3237 
+    ## 
+    ## Critical values for test statistics: 
+    ##       1pct  5pct 10pct
+    ## tau1 -2.58 -1.95 -1.62
+
+I amend some code from the practicals and nested it within a graphing
+function to render a comparison between the currency returns sigma,
+which contains noise and is plotted on the graph in black, and the noise
+reduced Sigma estimate from the GARCH model plotted in red. Therefore,
+the volatility of the Rand maybe be overstated before controlling for
+noise.
+
+``` r
+q5_GARCH_Graph(df_data = cncy,
+               title = "Comparison: Currency Returns Sigma vs Sigma from Garch",
+               subtitle = "USD Dollar to Rand Exchange Rate",
+               caption = "Red line - noise reduced actual volatility
+               Black line = Red line + Noise",
+               xlabel = "",
+               ylabel = "Volatility/Sigma (%)")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-33-1.png)
+
+# Question 6: MSCI Funds
+
+``` r
+# load packages
+pacman::p_load("MTS", "robustbase")
+pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch", 
+    "forecast", "tbl2xts", "lubridate", "PerformanceAnalytics", 
+    "ggthemes", "ks")
+pacman::p_load("tidyverse", "rugarch", "rmgarch")
+
+#load Packages
+library(tidyverse)
+library(tbl2xts)
+library(rugarch)
+
+# load data, and see how this can be stored and later called from your 'data' folder.
+msci <- read_rds("data/msci.rds")
+bonds <- read_rds("data/bonds_10y.rds")
+comms <- read_rds("data/comms.rds")
+```
+
+## Introduction
+
+This report investigates how the return profiles of different asset
+classes (Equities, Commodities, Real Estate and Bonds) have increased in
+their convergence over time by explaining co-movements between different
+asset classes using a multivariate GARCH model.
+
+## Data
+
+I begin by selecting specific assets from the data sets provided and
+follow an approach similar to the practical. I select the MSCI_ACWI
+index to represent Equities, the BCom_Index to represent Commodities,
+the MSCI_RE to represent Real Estate and the US_10Yr to represent bonds.
+I calculate returns for the daily price data before combining the data
+to perform the analysis, followed by log scaling and centering the data.
+This was tricky to accomplish in one go so I split it up into its parts,
+wrangled the data and then combined the data.
+
+## DCC Model
+
+I follow the practical code closely to render the model. I amend code
+and nested functions inside one another to keep the working document
+neat. I plot the estimates of volatility for each series from from
+‘dccPre’.
+
+``` r
+# SEE: q6_nested_graph_function.R (NESTED FUNC)
+q6_nested_graph_function(df_data)
+```
+
+    ## Sample mean of the returns:  -0.0001532192 0.0006273741 -0.000122789 -0.0001327623 
+    ## Component:  1 
+    ## Estimates:  3e-06 0.183428 0.782732 
+    ## se.coef  :  0 0.021974 0.022599 
+    ## t-value  :  5.585021 8.347446 34.636 
+    ## Component:  2 
+    ## Estimates:  2e-06 0.136209 0.826154 
+    ## se.coef  :  0 0.017766 0.022081 
+    ## t-value  :  4.61807 7.666786 37.41462 
+    ## Component:  3 
+    ## Estimates:  5e-06 0.079257 0.914998 
+    ## se.coef  :  2e-06 0.010207 0.01074 
+    ## t-value  :  3.076316 7.764681 85.19931 
+    ## Component:  4 
+    ## Estimates:  1e-06 0.049531 0.936488 
+    ## se.coef  :  0 0.006571 0.008666 
+    ## t-value  :  3.466549 7.537786 108.0608
+
+![](README_files/figure-markdown_github/unnamed-chunk-36-1.png)
+
+The ‘dccPre’ function is use to fit the univariate GARCH models to each
+series in the data and a standard univariate GARCH(1,1) is run which
+produces the error term and sigma, which is then used to calculate the
+standardized residuals used in estimate the DCC model.
+
+The DCC model is then run and the estimates of time-varying correlation
+are produced.
+
+``` r
+DCCPre <- dccPre(xts_q6_data_combined_use, include.mean = T, p = 0)
+```
+
+    ## Sample mean of the returns:  -0.0001532192 0.0006273741 -0.000122789 -0.0001327623 
+    ## Component:  1 
+    ## Estimates:  3e-06 0.183428 0.782732 
+    ## se.coef  :  0 0.021974 0.022599 
+    ## t-value  :  5.585021 8.347446 34.636 
+    ## Component:  2 
+    ## Estimates:  2e-06 0.136209 0.826154 
+    ## se.coef  :  0 0.017766 0.022081 
+    ## t-value  :  4.61807 7.666786 37.41462 
+    ## Component:  3 
+    ## Estimates:  5e-06 0.079257 0.914998 
+    ## se.coef  :  2e-06 0.010207 0.01074 
+    ## t-value  :  3.076316 7.764681 85.19931 
+    ## Component:  4 
+    ## Estimates:  1e-06 0.049531 0.936488 
+    ## se.coef  :  0 0.006571 0.008666 
+    ## t-value  :  3.466549 7.537786 108.0608
+
+``` r
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+
+# We can now use these sresids to calculate the DCC model.
+
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+
+
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+```
+
+    ## Warning: 'tbl2xts' namespace cannot be unloaded:
+    ##   namespace 'tbl2xts' is imported by 'rmsfuns' so cannot be unloaded
+
+``` r
+DCC <- dccFit(StdRes, type="Engle")
+```
+
+    ## Estimates:  0.9439883 0.02805751 7.628358 
+    ## st.errors:  0.009865406 0.004106348 0.4391585 
+    ## t-values:   95.68672 6.832717 17.3704
+
+``` r
+pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
+```
+
+## Co-movements of Assets
+
+I now plot line graphs that illustrate how co-movements between
+different asset classes have changed over the last 10 years. I don’t
+want to include the GFC, as all asset classes were responding similarly
+at the time.
+
+To produce the Dynamic Conditional Correlations graphs for the four
+asset classes I nest the renaming function from the practicals inside of
+a graphing function, so that it can be reused simply by changing the
+input names.
+
+``` r
+graph_rename_func_q6(input_name_1 = "US_10Yr_",
+                     input_name_2 = "_US_10Yr",
+                     title = "Dynamic Conditional Correlations: US_10Yr",
+                     subtitle = "",
+                     caption = "Commodities, Equities, Real Estate and Bonds",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-38-1.png)
+
+From the Dynamic Conditional Correlations: US_10Yr graph, in the last
+two years of the period the other three asset classes (equities, real
+estate and commodities) see to be moving similarly to the US 10 Year
+Treasury bond. This is not surprising as bond prices are underpinned by
+interest rates and interest rate changes have significant effects on
+asset classes.
+
+``` r
+# make use of the graph func with the renaming func nested within it.
+
+
+graph_rename_func_q6(input_name_1 = "Bcom_Index_",
+                     input_name_2 = "_Bcom_Index",
+                     title = "Dynamic Conditional Correlations: Bcom_Index",
+                     subtitle = "Plot of Total Cases and Deaths per Continent",
+                     caption = "Commodities, Equities, Real Estate and Bonds",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-39-1.png)
+
+From, Dynamic Conditional Correlations: Bcom_Index graph, commodities
+have a less correlated than other asset classes as can see the
+bonds-commodities relationship oscillates just above zero.
+
+``` r
+graph_rename_func_q6(input_name_1 = "MSCI_ACWI_",
+                     input_name_2 = "_MSCI_ACWI",
+                     title = "Dynamic Conditional Correlations: MSCI_ACWI",
+                     subtitle = "",
+                     caption = "Commodities, Equities, Real Estate and Bonds",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-40-1.png)
+
+From the Dynamic Conditional Correlations: MSCI_ACWI graph, the All
+Country World Index and the Real Estate assets are more correlated than
+the other assets classes. This may be because of of common factor such
+as the availability of credit, would lead to incraesed housing and
+equity price as demand for this these asset would increase where the
+supply of credit facilities increase.
+
+``` r
+graph_rename_func_q6(input_name_1 = "MSCI_RE_",
+                     input_name_2 = "_MSCI_RE",
+                     title = "Dynamic Conditional Correlations: MSCI_RE",
+                     subtitle = "",
+                     caption = "Commodities, Equities, Real Estate and Bonds",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-41-1.png)
+
 # Question 7: Portfolio Construction
 
 ``` r
@@ -554,6 +1016,16 @@ library(PortfolioAnalytics)
 
 ``` r
 library(TTR)
+```
+
+    ## 
+    ## Attaching package: 'TTR'
+
+    ## The following object is masked from 'package:MTS':
+    ## 
+    ##     VMA
+
+``` r
 pacman::p_load("DEoptim", "ROI", "ROI.plugin.glpk", "ROI.plugin.quadprog")
 
 # load data, and see how this can be stored and later called from your 'data' folder.
@@ -965,10 +1437,10 @@ to achieve higher returns.
 chart.Weights(opt_minrisk, main = "Risk Minimized Portfolio: Rebalancing Weights")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-32-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-48-1.png)
 
 ``` r
 chart.Weights(opt_maxret, main = "Return Maximizing Portfolio: Rebalancing Weights")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-33-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-49-1.png)
