@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 
 # Question 4: Volatility Comparison
 # load functions
+library(tidyverse)
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
 # Lets load in example data, and see how this can be stored and later called from your 'data' folder.
@@ -47,10 +48,9 @@ graph_q4.1_func(df_data = q4.1_data,
 
 ```
 
-Now winsorize the data by setting any return above 0.25% equal to 0.25% and create a weighted return column based on the J200 weights.
-I also determine if there are missing values that will effect the results of my analysis and then the data is mean-centered.
+Now I winsorize the data by setting any return above 0.25% equal to 0.25% and create a weighted return column based on the J200 weights. I also determine if there are missing values that will effect the results of my analysis and then the data is mean-centered.
 
-The index weight column J200 and Index_Name column both have missing values, however this is nothing to be concerned about as this just implies that some stocks don't have weights as they were included in the Top 40 or will be in the future but are not included at present. There NAs in the Top 40 data can be set to zero.
+The index weight column J200 and Index_Name column both have missing values, however this is nothing to be concerned about as this just implies that some stocks don't have weights as they were included in the Top 40 or will be in the future but are not included at present. Therefore, I remove missing values from the weights column.
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -85,6 +85,8 @@ graph_q4.2_func(df_data = q4.2_data,
 
 # PCA
 
+Now that the data has been cleaned I begin the principal component analysis.
+
 I make use of the FactoMineR package to run my first PCA, however once I made the data wide missing values for the returns of certain equities in the index at specific dates. This may be because of listing and de-listing on a public exchange. I now use the impute function to replace missing values with using "Drawn_Distribution_Own" method, however this did not works and then moved on to replacing the missing values with the "Drawn_Distribution_Collective" method.
 
 ```{r}
@@ -117,10 +119,13 @@ factoextra::fviz_screeplot(pca_T40, ncp = 10)
 
 ```
 
+From the scree plot above one can see the first 10 or 10 largest principal components. Each component (1-10) display's it's contribution to explaining the variation in the Top 40 data set. The first component explains approximately 8.5% of the variation. Components 2 through 10, each explain roughly between 2.6% and 2% of the variation.
 
 ```{r}
 factoextra::fviz_contrib(pca_T40, choice = "var", axes = 1, top = 40, fill = "darkorange")
 ```
+
+The graph above provides the contribution each stop makes to the first component. The largest contributors to the are financials such as Standard Bank, First Rand, Invested, Nedbank, ABSA and Sanlam. Given the commonality of sector among the largest contributors to the first principal component. It is likely that the first principal competent is interest rates, given financial equities relationship to interest rates i.e. changing interest rates would significantly change financials share prices
 
 
 ```{r}
@@ -224,23 +229,23 @@ perf_lo <- Perf_comparisons(Idxs, YMs = Low_Vol, Alias = "Low_Vol")
 
 The co-efficient of variation shows the extent of variability of data in a sample in relation to the mean of the population.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 perf_hi_low <- left_join(perf_hi %>% rename(High_Ratio = Ratio, SD_High = SD, FULL_SD_High = Full_SD) %>%
                              select(Tickers, High_Ratio, SD_High, FULL_SD_High),
                          
               perf_lo %>% rename(Low_Ratio = Ratio, SD_Low = SD, FULL_SD_LOW = Full_SD) %>%
                   select(Tickers, Low_Ratio, SD_Low, FULL_SD_LOW),
-              by = "Tickers") %>% 
+              by = "Tickers") %>% arrange(High_Ratio) %>% 
                     na.omit() 
     
 #%>% filter(Tickers == c(""))
 
-t <- knitr::kable(perf_hi_low , digits = 2, caption = "Summary of Mean Application Statistics per Catergory"),
-                     col.names = c("Category", "Price ($)", "Installs"))
+table <- knitr::kable(perf_hi_low , digits = 2, caption = "Summary of Mean Application Statistics per Category")
+table
 
 ```
 
-
+The 'Summary of Mean Application Statistics per Category' table provides standard deviation ratios that help determine with share prices experience changes in price during periods of low or high volatility. Therefore, one can gain insights as to which listed companies share prices are stable in periods of high volatility.
 
 

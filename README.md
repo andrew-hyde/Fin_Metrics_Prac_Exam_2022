@@ -13,8 +13,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 454926 24.3     977685 52.3   644205 34.5
-    ## Vcells 825568  6.3    8388608 64.0  1635495 12.5
+    ## Ncells 455266 24.4     978657 52.3   644205 34.5
+    ## Vcells 828166  6.4    8388608 64.0  1635495 12.5
 
 ``` r
 library(tidyverse)
@@ -531,6 +531,332 @@ cum_returns_q3.5_func(df_data = RebDays,
 
 ![](README_files/figure-markdown_github/unnamed-chunk-26-1.png)
 
+# Question 4: Volatility Comparison
+
+``` r
+# Lets load in example data, and see how this can be stored and later called from your 'data' folder.
+library(tidyverse)
+# import the data
+T40 <- read_rds("data/T40.rds")
+T40$Tickers <- gsub("SJ|Equity", "", T40$Tickers)
+usdzar <- read_rds("data/usdzar.rds")
+```
+
+## Introduction
+
+In this section I run a Principal Component Analysis to understand the
+concentration and commonality of returns within the Top 40 indexes.
+
+## Data
+
+I begin testing the data for missing values (NA) and then plotting the
+data to see if there are any significant outliers.
+
+``` r
+graph_q4.1_func(df_data = q4.1_data,
+                title = "Returns of ALSI Weighted Index",
+                subtitle = "From 2008 to 2022",
+                caption = "ALSI (J200) 40 Indexes",
+                xlabel = "Date",
+                ylabel = "Returns")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-28-1.png)
+
+Now I winsorize the data by setting any return above 0.25% equal to
+0.25% and create a weighted return column based on the J200 weights. I
+also determine if there are missing values that will effect the results
+of my analysis and then the data is mean-centered.
+
+The index weight column J200 and Index_Name column both have missing
+values, however this is nothing to be concerned about as this just
+implies that some stocks don’t have weights as they were included in the
+Top 40 or will be in the future but are not included at present.
+Therefore, I remove missing values from the weights column.
+
+``` r
+# determine if there are NA's in the data
+missing_values_by_column <- colSums(is.na(T40))
+T40["J200"][is.na(T40["J200"])] <- 0 
+
+T40 <- T40 %>% 
+    select(-J400) %>%
+    # can also winsorize the data
+    mutate(Return = ifelse(Return > 0.25, 0.25, ifelse(Return < -0.25, -0.25, Return))) %>%
+    arrange(date) %>%
+    group_by(Tickers) %>%
+    mutate(Return = Return - mean(Return)) %>%
+    mutate(weighted_return = J200*Return) %>% 
+    ungroup() %>% 
+    filter(date > first(date))
+    #select(date, Tickers, weighted_return)
+
+
+# Plot the clean data
+graph_q4.2_func(df_data = q4.2_data,
+                title = "Returns of ALSI Weighted Indexes",
+                subtitle = "From 2008 to 2022",
+                caption = "ALSI (J200) 40 Indexes",
+                xlabel = "Date",
+                ylabel = "Returns")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-29-1.png)
+
+## PCA
+
+Now that the data has been cleaned I begin the principal component
+analysis.
+
+I make use of the FactoMineR package to run my first PCA, however once I
+made the data wide missing values for the returns of certain equities in
+the index at specific dates. This may be because of listing and
+de-listing on a public exchange. I now use the impute function to
+replace missing values with using “Drawn_Distribution_Own” method,
+however this did not works and then moved on to replacing the missing
+values with the “Drawn_Distribution_Collective” method.
+
+``` r
+library(FactoMineR)
+library(factoextra)
+```
+
+    ## Welcome! Want to learn more? See two factoextra-related books at https://goo.gl/ve3WBa
+
+``` r
+# pca requires wide, numeric data: REMORE date for PCA
+# data_T40_wide <- T40 %>% filter(date > lubridate::ymd(20080101)) %>% 
+#     select(date, Tickers, weighted_return) %>% 
+#     mutate(Return = weighted_return) %>% # rename for the impute_missing_value function
+#         spread(Tickers, Return) %>% select(-date) 
+
+# test for NA's since PCA func returned NA error
+
+return_mat_Quick = T40 %>%  
+    mutate(Return = weighted_return) %>% 
+    select(date, Tickers, Return) %>% 
+    filter(date > lubridate::ymd(20080101)) %>% 
+    spread(Tickers, Return)
+
+# need date column for impute_missing_returns
+pca_T40_data <- impute_missing_returns(return_mat = return_mat_Quick, 
+                                       impute_returns_method = "Drawn_Distribution_Collective")
+# pca requires wide, numeric data: REMORE date for PCA
+pca_T40 <- PCA(pca_T40_data %>% select(-date), graph = FALSE)
+
+
+factoextra::fviz_screeplot(pca_T40, ncp = 10)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-30-1.png)
+
+``` r
+# Contributions of variables on PC1
+```
+
+From the scree plot above one can see the first 10 or 10 largest
+principal components. Each component (1-10) display’s it’s contribution
+to explaining the variation in the Top 40 data set. The first component
+explains approximately 8.5% of the variation. Components 2 through 10,
+each explain roughly between 2.6% and 2% of the variation.
+
+``` r
+factoextra::fviz_contrib(pca_T40, choice = "var", axes = 1, top = 40, fill = "darkorange")
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-31-1.png)
+
+The graph above provides the contribution each stop makes to the first
+component. The largest contributors to the are financials such as
+Standard Bank, First Rand, Invested, Nedbank, ABSA and Sanlam. Given the
+commonality of sector among the largest contributors to the first
+principal component. It is likely that the first principal competent is
+interest rates, given financial equities relationship to interest rates
+i.e. changing interest rates would significantly change financials share
+prices
+
+``` r
+fviz_pca_var(pca_T40, col.var = "contrib", repel = T) + theme_minimal()
+```
+
+    ## Warning: ggrepel: 71 unlabeled data points (too many overlaps). Consider
+    ## increasing max.overlaps
+
+![](README_files/figure-markdown_github/unnamed-chunk-32-1.png)
+
+``` r
+library(tidyverse)
+library(rmsfuns)
+pacman::p_load("tidyr", "tbl2xts","devtools","lubridate", "readr", "PerformanceAnalytics", "ggplot2", "dplyr")
+
+# ALSI (J200) weighted returns
+T40_index <- T40 %>% arrange(date) %>% 
+    group_by(Tickers) %>% 
+    mutate(Return = Return * J200) %>% 
+    select(date, Tickers, Return) %>% 
+    filter(!is.na(Return)) %>% 
+    mutate(YearMonth = format(date, "%Y%B")) %>% 
+    ungroup()
+
+
+Idx_Cons <- T40_index %>% 
+            group_by(Tickers) %>% 
+            filter(date == first(date)) %>% 
+            ungroup() %>% 
+            pull(Tickers) %>% unique
+
+Index_data <- T40_index %>% 
+                filter(Tickers %in% Idx_Cons) %>% 
+                filter(date > ymd(20080101))
+
+# Control for outliers by winzorising the data
+
+T40_Index_data <- Index_data %>%
+    group_by(Tickers) %>% 
+    mutate(Top = quantile(Return, 0.99), Bot = quantile(Return, 0.01)) %>% 
+    mutate(Return = ifelse(Return > Top, Top, ifelse(Return < Bot, Bot, Return))) %>%
+    ungroup()
+
+# Now use another asset such as currency that quickly reflects volatility 
+usdzar_data <- usdzar %>% 
+     # this will produce NA at 1st date
+    mutate(Return = Price - lag(Price)) %>%
+    # therefore calc returns before you filter for date
+               filter(date > ymd(20080101)) %>% 
+               select(-Name)
+
+# calc monthly SD from daily data
+usdzarSD <- usdzar_data %>% 
+    mutate(YearMonth = format(date, "%Y%B")) %>% 
+    group_by(YearMonth) %>% summarise(SD = sd(Return)*sqrt(252)) %>% 
+    # Top Decile Quantile overall (highly volatile month for ZAR:
+    mutate(TopQtile = quantile(SD, 0.8),
+           BotQtile = quantile(SD, 0.2))
+
+# calculate high and low volatility months
+Hi_Vol <- usdzarSD %>% filter(SD > TopQtile) %>% pull(YearMonth)
+Low_Vol <- usdzarSD %>% filter(SD < BotQtile) %>% pull(YearMonth)
+
+Perf_comparisons <- function(Idxs, YMs, Alias){
+    # For stepping through uncomment:
+    # YMs <- Hi_Vol
+    Unconditional_SD <- 
+        
+        T40_Index_data %>% 
+        
+        group_by(Tickers) %>% 
+        
+        mutate(Full_SD = sd(Return) * sqrt(252)) %>% 
+        
+        filter(YearMonth %in% YMs) %>% 
+        
+        summarise(SD = sd(Return) * sqrt(252), 
+                  across(.cols = starts_with("Full"), .fns = mean)) %>% 
+        
+        arrange(desc(SD)) %>% mutate(Period = Alias) %>% 
+        
+        group_by(Tickers) %>% 
+        
+        mutate(Ratio = SD / Full_SD)
+    
+    Unconditional_SD
+    
+}
+
+
+perf_hi <- Perf_comparisons(Idxs = T40_Index_data , YMs = Hi_Vol, Alias = "High_Vol")
+
+perf_lo <- Perf_comparisons(Idxs, YMs = Low_Vol, Alias = "Low_Vol")
+```
+
+The co-efficient of variation shows the extent of variability of data in
+a sample in relation to the mean of the population.
+
+``` r
+perf_hi_low <- left_join(perf_hi %>% rename(High_Ratio = Ratio, SD_High = SD, FULL_SD_High = Full_SD) %>%
+                             select(Tickers, High_Ratio, SD_High, FULL_SD_High),
+                         
+              perf_lo %>% rename(Low_Ratio = Ratio, SD_Low = SD, FULL_SD_LOW = Full_SD) %>%
+                  select(Tickers, Low_Ratio, SD_Low, FULL_SD_LOW),
+              by = "Tickers") %>% arrange(High_Ratio) %>% 
+                    na.omit() 
+    
+#%>% filter(Tickers == c(""))
+
+table <- knitr::kable(perf_hi_low , digits = 2, caption = "Summary of Mean Application Statistics per Category")
+table
+```
+
+| Tickers | High_Ratio | SD_High | FULL_SD_High | Low_Ratio | SD_Low | FULL_SD_LOW |
+|:--------|-----------:|--------:|-------------:|----------:|-------:|------------:|
+| IPL     |       0.00 |    0.00 |         0.00 |      0.93 |   0.00 |        0.00 |
+| TRU     |       0.92 |    0.00 |         0.00 |      0.99 |   0.00 |        0.00 |
+| LHC     |       1.04 |    0.00 |         0.00 |      1.01 |   0.00 |        0.00 |
+| MRP     |       1.05 |    0.00 |         0.00 |      0.76 |   0.00 |        0.00 |
+| MSM     |       1.08 |    0.00 |         0.00 |      1.03 |   0.00 |        0.00 |
+| SHP     |       1.09 |    0.00 |         0.00 |      0.87 |   0.00 |        0.00 |
+| NTC     |       1.12 |    0.00 |         0.00 |      0.72 |   0.00 |        0.00 |
+| WHL     |       1.13 |    0.00 |         0.00 |      0.88 |   0.00 |        0.00 |
+| MTN     |       1.15 |    0.02 |         0.02 |      0.95 |   0.02 |        0.02 |
+| APN     |       1.19 |    0.00 |         0.00 |      0.69 |   0.00 |        0.00 |
+| SOL     |       1.20 |    0.02 |         0.02 |      0.85 |   0.01 |        0.02 |
+| CFR     |       1.21 |    0.03 |         0.02 |      0.74 |   0.02 |        0.02 |
+| AGL     |       1.21 |    0.04 |         0.04 |      0.88 |   0.03 |        0.04 |
+| VOD     |       1.21 |    0.00 |         0.00 |      0.78 |   0.00 |        0.00 |
+| DSY     |       1.22 |    0.00 |         0.00 |      0.54 |   0.00 |        0.00 |
+| BHP     |       1.24 |    0.05 |         0.04 |      0.87 |   0.04 |        0.04 |
+| EXX     |       1.24 |    0.00 |         0.00 |      0.78 |   0.00 |        0.00 |
+| REM     |       1.25 |    0.01 |         0.00 |      0.77 |   0.00 |        0.00 |
+| INP     |       1.25 |    0.00 |         0.00 |      0.77 |   0.00 |        0.00 |
+| NED     |       1.25 |    0.00 |         0.00 |      0.72 |   0.00 |        0.00 |
+| BVT     |       1.25 |    0.00 |         0.00 |      0.84 |   0.00 |        0.00 |
+| INL     |       1.25 |    0.00 |         0.00 |      0.81 |   0.00 |        0.00 |
+| REI     |       1.26 |    0.00 |         0.00 |      0.76 |   0.00 |        0.00 |
+| SBK     |       1.27 |    0.01 |         0.01 |      0.82 |   0.01 |        0.01 |
+| TBS     |       1.27 |    0.00 |         0.00 |      0.77 |   0.00 |        0.00 |
+| MND     |       1.27 |    0.00 |         0.00 |      0.60 |   0.00 |        0.00 |
+| ABG     |       1.28 |    0.01 |         0.00 |      0.65 |   0.00 |        0.00 |
+| RMH     |       1.28 |    0.00 |         0.00 |      0.82 |   0.00 |        0.00 |
+| GRT     |       1.28 |    0.00 |         0.00 |      0.64 |   0.00 |        0.00 |
+| MUR     |       1.30 |    0.01 |         0.00 |      0.90 |   0.00 |        0.00 |
+| AMS     |       1.30 |    0.01 |         0.01 |      0.73 |   0.00 |        0.01 |
+| SLM     |       1.30 |    0.01 |         0.01 |      0.66 |   0.00 |        0.01 |
+| IMP     |       1.31 |    0.02 |         0.01 |      0.74 |   0.01 |        0.01 |
+| BTI     |       1.31 |    0.01 |         0.01 |      0.65 |   0.00 |        0.01 |
+| MDC     |       1.31 |    0.00 |         0.00 |      0.78 |   0.00 |        0.00 |
+| OML     |       1.32 |    0.01 |         0.01 |      0.72 |   0.01 |        0.01 |
+| FSR     |       1.33 |    0.01 |         0.01 |      0.67 |   0.01 |        0.01 |
+| SAB     |       1.34 |    0.03 |         0.02 |      0.80 |   0.02 |        0.02 |
+| AEG     |       1.35 |    0.01 |         0.00 |      0.95 |   0.00 |        0.00 |
+| PPC     |       1.36 |    0.00 |         0.00 |      0.57 |   0.00 |        0.00 |
+| MNP     |       1.37 |    0.01 |         0.00 |      0.45 |   0.00 |        0.00 |
+| SAP     |       1.37 |    0.00 |         0.00 |      0.87 |   0.00 |        0.00 |
+| ITU     |       1.38 |    0.00 |         0.00 |      0.70 |   0.00 |        0.00 |
+| CCO     |       1.39 |    0.00 |         0.00 |      0.45 |   0.00 |        0.00 |
+| LON     |       1.40 |    0.00 |         0.00 |      0.63 |   0.00 |        0.00 |
+| NPN     |       1.41 |    0.06 |         0.04 |      0.42 |   0.02 |        0.04 |
+| ANG     |       1.42 |    0.01 |         0.01 |      0.74 |   0.01 |        0.01 |
+| LBH     |       1.43 |    0.00 |         0.00 |      0.64 |   0.00 |        0.00 |
+| ASR     |       1.44 |    0.00 |         0.00 |      0.84 |   0.00 |        0.00 |
+| KIO     |       1.47 |    0.00 |         0.00 |      0.84 |   0.00 |        0.00 |
+| PIK     |       1.48 |    0.00 |         0.00 |      0.74 |   0.00 |        0.00 |
+| SNH     |       1.48 |    0.01 |         0.01 |      0.60 |   0.00 |        0.01 |
+| TKG     |       1.48 |    0.01 |         0.00 |      0.54 |   0.00 |        0.00 |
+| GFI     |       1.50 |    0.01 |         0.01 |      0.67 |   0.01 |        0.01 |
+| ACL     |       1.55 |    0.01 |         0.00 |      0.61 |   0.00 |        0.00 |
+| LGL     |       1.57 |    0.00 |         0.00 |      0.79 |   0.00 |        0.00 |
+| HAR     |       1.64 |    0.01 |         0.00 |      0.63 |   0.00 |        0.00 |
+| AXL     |       1.73 |    0.00 |         0.00 |      0.73 |   0.00 |        0.00 |
+| ARI     |       1.76 |    0.00 |         0.00 |      0.73 |   0.00 |        0.00 |
+
+Summary of Mean Application Statistics per Category
+
+The ‘Summary of Mean Application Statistics per Category’ table provides
+standard deviation ratios that help determine with share prices
+experience changes in price during periods of low or high volatility.
+Therefore, one can gain insights as to which listed companies share
+prices are stable in periods of high volatility.
+
 # Question 5: Volatility and GARCH estimates
 
 ``` r
@@ -619,7 +945,7 @@ Q5.1_graph_func_vol(df_data = df_q5.1_cncyIV_graph_data,
                     ylabel = "Implied Volatility")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-29-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-37-1.png)
 
 I therefore reduce the sample period to the last 5 years in order to
 determine if currency has been one of the most volatile in recent years.
@@ -779,7 +1105,7 @@ q5_GARCH_Graph(df_data = cncy,
                ylabel = "Volatility/Sigma (%)")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-33-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-41-1.png)
 
 # Question 6: MSCI Funds
 
@@ -850,7 +1176,7 @@ q6_nested_graph_function(df_data)
     ## se.coef  :  0 0.006571 0.008666 
     ## t-value  :  3.466549 7.537786 108.0608
 
-![](README_files/figure-markdown_github/unnamed-chunk-36-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-44-1.png)
 
 The ‘dccPre’ function is use to fit the univariate GARCH models to each
 series in the data and a standard univariate GARCH(1,1) is run which
@@ -934,7 +1260,7 @@ graph_rename_func_q6(input_name_1 = "US_10Yr_",
                      ylabel = "Rho")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-38-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-46-1.png)
 
 From the Dynamic Conditional Correlations: US_10Yr graph, in the last
 two years of the period the other three asset classes (equities, real
@@ -956,7 +1282,7 @@ graph_rename_func_q6(input_name_1 = "Bcom_Index_",
                      ylabel = "Rho")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-39-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-47-1.png)
 
 From, Dynamic Conditional Correlations: Bcom_Index graph, commodities
 have a less correlated than other asset classes as can see the
@@ -972,7 +1298,7 @@ graph_rename_func_q6(input_name_1 = "MSCI_ACWI_",
                      ylabel = "Rho")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-40-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-48-1.png)
 
 From the Dynamic Conditional Correlations: MSCI_ACWI graph, the All
 Country World Index and the Real Estate assets are more correlated than
@@ -991,7 +1317,7 @@ graph_rename_func_q6(input_name_1 = "MSCI_RE_",
                      ylabel = "Rho")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-41-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-49-1.png)
 
 # Question 7: Portfolio Construction
 
@@ -1437,10 +1763,10 @@ to achieve higher returns.
 chart.Weights(opt_minrisk, main = "Risk Minimized Portfolio: Rebalancing Weights")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-48-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-56-1.png)
 
 ``` r
 chart.Weights(opt_maxret, main = "Return Maximizing Portfolio: Rebalancing Weights")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-49-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-57-1.png)
